@@ -48,35 +48,94 @@
 					</p>
 				</section>
 
-				<section>
-					<h2>Hello There</h2>
-					<p>
-						reveal.js enables you to create beautiful interactive slide decks using HTML. This presentation will show you examples of what it can do.
-					</p>
-				</section>
-
 				<!-- Example of nested vertical slides -->
 				<section>
 					<section>
-						<h2>Vertical Slides</h2>
-						<p>Slides can be nested inside of each other.</p>
-						<p>Use the <em>Space</em> key to navigate through all slides.</p>
-						<br>
-						<a href="#" class="navigate-down">
-							<img width="178" height="238" data-src="https://s3.amazonaws.com/hakim-static/reveal-js/arrow.png" alt="Down arrow">
-						</a>
+						<h2>DNS 伺服器設定(ubuntu)</h2>
 					</section>
 					<section>
-						<h2>Basement Level 1</h2>
-						<p>Nested slides are useful for adding additional detail underneath a high level horizontal slide.</p>
+						<h2>步驟1. 安裝bind9</h2>
+						<pre>
+						<code data-trim contenteditable>
+$ sudo apt-get install bind9
+						</code>
+						</pre>
 					</section>
 					<section>
-						<h2>Basement Level 2</h2>
-						<p>That's it, time to go back up.</p>
-						<br>
-						<a href="#/2">
-							<img width="178" height="238" data-src="https://s3.amazonaws.com/hakim-static/reveal-js/arrow.png" alt="Up arrow" style="transform: rotate(180deg); -webkit-transform: rotate(180deg);">
-						</a>
+						<h2>步驟2. 設定 zone</h2>
+						<p>設定檔位於 /etc/bind</p>
+						<p>打開主要設定檔/etc/bind/可看到它是個模組化的設計，事先幫你區隔開不同功能的檔案</p>
+						<pre>
+						<code>
+// 一些關於伺服器本身的選項
+include "/etc/bind/named.conf.options"; 
+// *留給我們自己設定dns的檔案
+include "/etc/bind/named.conf.local"; 
+// 預設的一些zone，例如root dns server跟localhost
+include "/etc/bind/named.conf.default-zones"; 
+						</code>
+						</pre>
+					</section>
+					<section>
+						<p>在/etc/bind/named.conf.local裡設定（也是可以寫在其他檔，但得額外include到named.conf）</p>
+						<pre>
+						<code>
+zone "test.org" in {
+	type master; // 是 master 還是 slave
+	file "/etc/bind/db.test.org"; // 設定檔位置
+};
+						</code>
+						</pre>
+					</section>
+					<section>
+						<h2>步驟3. 設定每一條record</h2>
+						<p>在/etc/bind/db.test.org（在zone設定檔中指定的位置）裡設定</p>
+						<p>警告！實際上無法在db檔中用 // 來註解</p>
+						<pre>
+						<code>
+$TTL 60
+// @ 代表zone自身，在這裡就代表test.org
+@ IN SOA ns.test.org. admin.test.org. (
+	2015062201 // 序號，習慣上以年、月、日、第幾次更動為編號
+	5 // slave 多久去跟 master要一次資料
+	1 // slave 要求失敗之後多久再要一次
+	86400 // 失效時間，若一直失敗持續多久就不連了
+	600 // 反向快取時間，快取"沒這個domain" 的時間
+)
+@ IN NS ns.test.org.
+@ IN A 100.100.100.1
+ns IN A 100.100.100.2
+blog IN A 100.100.100.3
+						</code>
+						</pre>
+					</section>
+					<section>
+						<h2>啟動及測試</h2>
+						<pre>
+						<code>
+$ sudo service bind9 start
+$ dig blog.test.org @localhost
+						</code>
+						</pre>
+					</section>
+				</section>
+				<section>
+					<section>
+						<h2>DNS 主從式架構</h2>
+						<img src="img/masterslave.jpg" alt="">
+					</section>
+					<section>
+						<h2>主從式架構 Q&A</h2>
+						<ol>
+							<li>
+								<p>為什麼要主從式？</p>
+								<p>Ans: dns 伺服器有很多台的時候，手動一台一台設db很痛苦，所以希望可以更新一台就可以順便更新其他</p>
+							</li>
+							<li>
+								<p>主從式架構如何進行同步？</p>
+								<p>Ans: 主人更新時會主動通知，僕人也會定時去問</p>
+							</li>
+						</ol>
 					</section>
 				</section>
 
