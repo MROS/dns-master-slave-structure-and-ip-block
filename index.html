@@ -15,6 +15,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
 
 		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/custom.css">
 		<link rel="stylesheet" href="css/theme/black.css" id="theme">
 
 		<!-- Code syntax highlighting -->
@@ -104,7 +105,7 @@ $TTL 60
 )
 @ IN NS ns.test.org.
 @ IN A 100.100.100.1
-ns IN A 100.100.100.2
+ns IN A 10.0.2.6
 blog IN A 100.100.100.3
 						</code>
 						</pre>
@@ -136,6 +137,64 @@ $ dig blog.test.org @localhost
 								<p>Ans: 主人更新時會主動通知，僕人也會定時去問</p>
 							</li>
 						</ol>
+					</section>
+					<section>
+						<h2>主人設定</h2>
+						<p>剛剛設定的那台就是主人，但增加僕人時也該讓主人知道它的存在</p>
+						<p>1. 在/etc/bind/named.conf.local 設定某個zone給予其他ip擷取的權限</p>
+						<pre>
+						<code>
+zone "test.org" in {
+	type master;
+	file "/etc/bind/db.test.org";
+	allow-transfer { 10.0.2.5; }; // 可接受10.0.2.5的要求
+};
+						</code>
+						</pre>
+					</section>
+					<section>
+						<h2>主人設定</h2>
+						<p>2. 在/etc/bind/db.test.org 設定另一 slave 的紀錄，當reload時，主人就會觀看此處有誰也是name server，而去提醒它</p>
+						<pre>
+						<code>
+@ IN NS ns.test.org.
+@ IN NS slave.test.org. // 新增slave為一NS
+@ IN A 100.100.100.1
+ns IN A 10.0.2.6
+slave IN A 10.0.2.5 // slave的ip
+blog IN A 100.100.100.3
+						</code>
+						</pre>
+					</section>
+					<section>
+						<h2>僕人設定</h2>
+						<p>僕人反而比較輕鬆，只要知道主人是誰就好</p>
+						<p>在/etc/bind/named.conf.local中設定zone</p>
+						<pre>
+						<code>
+zone "test.org" IN {
+	type slave;
+	file "/etc/bind/db.test.org";
+	masters { 10.0.2.6; }; // 主人是10.0.2.5
+};
+						</code>
+						</pre>
+					</section>
+					<section>
+						<h2>檢測是否進行同步1. master 主動</h2>
+						<p>在master reload 時都會主動告知slave</p>
+						<pre>
+						<code>
+$ sudo service bind9 reload
+						</code>
+						</pre>
+						<img src="img/master_notify.png" alt="">
+					</section>
+					<section>
+						<h2>檢測是否進行同步2. slave 輪詢</h2>
+						<p>slave 根據 soa 設定的refresh 時間進行反覆查詢，然而並不精準，以下為設定refresh為5秒及二十分鐘，擷取封包的結果</p>
+						<img src="img/refresh_5s.png" alt="">
+						<img src="img/refresh_20m.png" alt="">
 					</section>
 				</section>
 
